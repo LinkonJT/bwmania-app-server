@@ -3,7 +3,7 @@ const express = require('express')
 const app = express()
 const cors = require("cors");
 const port = process.env.PORT || 3000
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
 // Middleware
 app.use(cors())
@@ -31,6 +31,8 @@ async function run() {
 
     /****Start: coding here */
 const usersCollection = client.db("bwmaniaDB").collection('users')
+const productsCollection = client.db("bwmaniaDB").collection('products')
+const carsCollection = client.db("bwmaniaDB").collection('cars')
 
 
 /*************** POST route to insert a new user********/ 
@@ -48,8 +50,138 @@ app.post('/users', async (req, res) => {
 })
 
 
+app.get('/users', async (req, res) => {
+  const users = await usersCollection.find().toArray();
+  res.send(users);
+});
+
+app.post('/products', async (req, res)=>{
+  const product = req.body
+  const result = await productsCollection.insertOne(product)
+  res.send(result)
+})
 
 
+app.get ('/products', async (req, res)=>{
+  const products = await productsCollection.find().toArray();
+  res.send(products)
+})
+
+
+/**to get single product */
+app.get ('/product/:id', async (req, res)=>{
+  const id = req.params.id; // Get the product ID from the URL
+  const query = {_id: new ObjectId(id)}
+  const product = await productsCollection.findOne(query); // Find product by ID
+
+  if(!product){
+  return  res.status(404).send({message: "product not found"})
+  }
+  res.send(product)
+})
+
+
+//UPDATE PRODUCT*
+app.patch('/products/:id', async (req, res) => {
+  const id = req.params.id;
+  // Extract the update data from the request body
+  const updateData = req.body;  // This contains the fields to be updated
+  // Define the query to find the product by ID
+  const query = { _id: new ObjectId(id) };
+  // Define the update object with $set to update only the provided fields
+  const update = { $set: updateData };
+  // Configure the options (if needed in future, like multi-update or upsert)
+  const options = { upsert: false }; // Example option, false means it won't insert a new product if not found
+  try {
+    // Perform the update operation
+    const result = await productsCollection.updateOne(query, update, options);
+
+    // Check if any document was modified
+    if (result.modifiedCount === 0) {
+      return res.status(404).send({ message: 'Product not found or no changes made' });
+    }
+    // Send a success response
+    res.send({ message: 'Product updated successfully' });
+  } catch (error) {
+    // Handle errors
+    console.error(error);
+    res.status(500).send({ message: 'Error updating product' });
+  }
+});
+
+//Delete Product
+
+app.delete('/products/:id', async (req, res)=>{
+try{
+  const id = req.params.id;
+  const query = {_id: new ObjectId(id)}
+const result = await productsCollection.deleteOne(query);
+// res.send(result); no need to send result
+    // If no car is found, return an error
+    if (result.deletedCount === 0) {
+      return res.status(404).send({ message: 'Car not found' });
+    }
+
+    // Successfully deleted
+    res.send({ message: 'Car deleted successfully' });
+}catch(error){
+  console.error(error)
+  res.status(500).send({message: 'Error deleting product'})
+}
+
+})
+
+//Cars using Axios, tanstack
+
+app.post('/cars', async (req, res)=>{
+  const cars = req.body
+  const result = await carsCollection.insertOne(cars);
+  res.send(result) 
+} )
+
+app.get('/cars', async (req, res)=>{ //to find all car infos in an array
+  const cars = await carsCollection.find().toArray()
+res.send(cars)
+});
+
+app.get('/car/:id', async(req, res)=>{
+  const id = req.params.id;
+  const query = {_id: new ObjectId(id)}
+  const result = await carsCollection.findOne(query);
+  res.send(result)
+})
+
+app.patch('/cars/:id', async(req, res)=>{
+  const id = req.params.id;
+  const updateData = req.body
+  const update = {$set: updateData}
+  const query = {_id: new ObjectId(id)};
+   const options = { upsert: false }; 
+try{
+const result =  await carsCollection.updateOne(query, update, options );
+ if (result.modifiedCount === 0) {
+      return res.status(404).send({ message: 'Product not found or no changes made' }); //You don’t need to send  the result (res.send(result)) (from updateOne()) back to the client unless you need information like how many documents were matched or modified.
+    }
+    // Send a success response
+    res.send({ message: 'Product updated successfully' });
+
+}catch(error){
+ console.error(error)
+res.status(500).send({message: 'Error deleting product'})
+}
+})
+
+
+app.delete('/cars/:id', async (req, res)=>{
+try{
+const id = req.params.id;
+const query = {_id: new ObjectId(id)}
+const result = await carsCollection.deleteOne(query)
+res.send(result)
+}catch(error){
+  console.error(error)
+}
+})
 
 /**End COding here */
 
